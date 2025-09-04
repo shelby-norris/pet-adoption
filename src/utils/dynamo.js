@@ -8,10 +8,16 @@ import {
   DeleteCommand,
 } from "@aws-sdk/lib-dynamodb";
 
-export const docClient = DynamoDBDocumentClient.from(
-  new DynamoDBClient({}),
-  { marshallOptions: { removeUndefinedValues: true } }
-);
+
+const client = new DynamoDBClient({
+  region: import.meta.env.VITE_AWS_REGION,
+  credentials: {
+    accessKeyId: import.meta.env.VITE_AWS_ACCESS_KEY_ID,
+    secretAccessKey: import.meta.env.VITE_AWS_SECRET_ACCESS_KEY,
+  },
+});
+
+const docClient = DynamoDBDocumentClient.from(client);
 
 export const listAllItems = async (tableName) => {
   try {
@@ -28,7 +34,9 @@ export const createItem = async (tableName, item) => {
 };
 
 export const getItem = async (tableName, key) => {
-  const res = await docClient.send(new GetCommand({ TableName: tableName, Key: key }));
+  const res = await docClient.send(
+    new GetCommand({ TableName: tableName, Key: key })
+  );
   return res.Item ?? null;
 };
 
@@ -38,28 +46,33 @@ export const updateItem = async (tableName, key, changes) => {
   const sets = [];
   let i = 0;
   for (const [k, v] of Object.entries(changes)) {
-    const n = `#n${i}`, val = `:v${i}`;
+    const n = `#n${i}`,
+      val = `:v${i}`;
     names[n] = k;
     values[val] = v;
     sets.push(`${n} = ${val}`);
     i++;
   }
-  const res = await docClient.send(new UpdateCommand({
-    TableName: tableName,
-    Key: key,
-    UpdateExpression: `SET ${sets.join(", ")}`,
-    ExpressionAttributeNames: names,
-    ExpressionAttributeValues: values,
-    ReturnValues: "ALL_NEW",
-  }));
+  const res = await docClient.send(
+    new UpdateCommand({
+      TableName: tableName,
+      Key: key,
+      UpdateExpression: `SET ${sets.join(", ")}`,
+      ExpressionAttributeNames: names,
+      ExpressionAttributeValues: values,
+      ReturnValues: "ALL_NEW",
+    })
+  );
   return res.Attributes ?? null;
 };
 
 export const deleteItem = async (tableName, key) => {
-  const res = await docClient.send(new DeleteCommand({
-    TableName: tableName,
-    Key: key,
-    ReturnValues: "ALL_OLD",
-  }));
+  const res = await docClient.send(
+    new DeleteCommand({
+      TableName: tableName,
+      Key: key,
+      ReturnValues: "ALL_OLD",
+    })
+  );
   return res.Attributes ?? null;
 };
